@@ -59,14 +59,41 @@
         android:onClick="onClickSend"
         android:text="@string/send_button_text" />
 
+    <ToggleButton
+        android:id="@+id/powerButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/sendButton"
+        android:onClick="onClickPower"
+        android:text="ToggleButton" />
+
     <TextView
         android:id="@+id/inputStreamTextView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@+id/sendButton"
-        android:text="@string/input_stream_welcome_text" 
-		android:scrollbars = "vertical" 
-		android:gravity="bottom"/>
+        android:layout_alignParentBottom="true"
+        android:layout_below="@+id/volumePicker"
+        android:gravity="bottom"
+        android:padding="15dip"
+        android:background="@drawable/border"
+        android:scrollbars="vertical"
+        android:text="@string/input_stream_welcome_text" />
+
+    <NumberPicker
+        android:id="@+id/volumePicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/powerButton"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/disconnectButton" />
+
+    <Button
+        android:id="@+id/volumeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/inputStreamTextView"
+        android:layout_toRightOf="@+id/sendButton"
+        android:onClick="onVolumeChange"
+        android:text="@string/volume_button_text" />
 
 </RelativeLayout>

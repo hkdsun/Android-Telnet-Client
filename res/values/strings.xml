@@ -10,6 +10,8 @@
     <string name="connect_button_text">Connect</string>
     <string name="disconnect_button_text">Disconnect</string>
     <string name="input_stream_welcome_text">Response from server appears here…</string>
-
+    <string name="volume_button_text">Adj. Vol.</string>
+    
+    
 
 </resources>

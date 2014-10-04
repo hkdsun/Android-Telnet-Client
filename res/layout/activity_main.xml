@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <EditText
+        android:id="@+id/EditTextCommand"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/command_hint" >
+    </EditText>
+
+    <EditText
+        android:id="@+id/EditTextIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:digits="0123456789."
+        android:hint="@string/ip_hint"
+        android:inputType="number" >
+    </EditText>
+
+    <EditText
+        android:id="@+id/EditTextPort"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:digits="0123456789."
+        android:ems="10"
+        android:hint="@string/port_hint"
+        android:inputType="number" >
+
+        <requestFocus />
+    </EditText>
+
+    <Button
+        android:id="@+id/sendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="onClickSend"
+        android:text="@string/send_button_text" >
+    </Button>
+
+    <Button
+        android:id="@+id/connectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="onClickConnect"
+        android:text="@string/connect_button_text" />
+
+    <Button
+        android:id="@+id/disconnectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="onClickDisconnect"
+        android:text="@string/disconnect_button_text" >
+    </Button>
+
+ 
+
+</LinearLayout>

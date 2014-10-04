@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical" >
 
@@ -8,8 +8,8 @@
         android:id="@+id/EditTextCommand"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/command_hint" >
-    </EditText>
+        android:ems="10"
+        android:hint="@string/command_hint" />
 
     <EditText
         android:id="@+id/EditTextIp"
@@ -27,10 +27,7 @@
         android:digits="0123456789."
         android:ems="10"
         android:hint="@string/port_hint"
-        android:inputType="number" >
-
-        <requestFocus />
-    </EditText>
+        android:inputType="number" />
 
     <Button
         android:id="@+id/sendButton"
@@ -54,7 +51,5 @@
         android:onClick="onClickDisconnect"
         android:text="@string/disconnect_button_text" >
     </Button>
-
- 
 
 </LinearLayout>

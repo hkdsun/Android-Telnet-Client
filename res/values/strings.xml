@@ -3,12 +3,13 @@
 
     <string name="app_name">Socket Client</string>
     <string name="action_settings">Settings</string>
-    <string name="command_hint">Enter your command…</string>
-    <string name="ip_hint">e.g. 192.168.0.100</string>
-    <string name="port_hint">Default port is 23</string>
+    <string name="command_hint">Enter your command here…</string>
+    <string name="ip_hint">hostname[:port]</string>
+    <string name="port_hint">Port</string>
     <string name="send_button_text">Send</string>
     <string name="connect_button_text">Connect</string>
     <string name="disconnect_button_text">Disconnect</string>
+    <string name="input_stream_welcome_text">Response from server appears here…</string>
 
 
 </resources>

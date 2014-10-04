@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <EditText
+        android:id="@+id/EditTextCommand"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:ems="10"
+        android:hint="@string/command_hint" >
+
+        <requestFocus />
+    </EditText>
+
+    <EditText
+        android:id="@+id/EditTextIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/EditTextCommand"
+        android:digits="0123456789.:"
+        android:ems="10"
+        android:hint="@string/ip_hint"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/disconnectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/EditTextIp"
+        android:layout_toRightOf="@+id/connectButton"
+        android:onClick="onClickDisconnect"
+        android:text="@string/disconnect_button_text" />
+
+    <Button
+        android:id="@+id/connectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/disconnectButton"
+        android:layout_below="@+id/EditTextIp"
+        android:layout_centerHorizontal="true"
+        android:onClick="onClickConnect"
+        android:text="@string/connect_button_text" />
+
+    <Button
+        android:id="@+id/sendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/connectButton"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/EditTextIp"
+        android:layout_toLeftOf="@+id/connectButton"
+        android:onClick="onClickSend"
+        android:text="@string/send_button_text" />
+
+    <TextView
+        android:id="@+id/inputStreamTextView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/sendButton"
+        android:text="@string/input_stream_welcome_text" 
+		android:scrollbars = "vertical" 
+		android:gravity="bottom"/>
+
+</RelativeLayout>

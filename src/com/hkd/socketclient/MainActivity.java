@@ -7,6 +7,7 @@ import java.io.StringReader;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.SocketException;
+
 import org.apache.commons.net.telnet.TelnetClient;
 import org.apache.commons.net.telnet.TelnetNotificationHandler;
 import org.apache.commons.net.telnet.SimpleOptionHandler;
@@ -15,15 +16,20 @@ import org.apache.commons.net.telnet.TerminalTypeOptionHandler;
 import org.apache.commons.net.telnet.SuppressGAOptionHandler;
 import org.apache.commons.net.telnet.InvalidTelnetOptionException;
 import org.apache.commons.io.*;
+
 import java.util.Locale;
 import java.util.StringTokenizer;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
@@ -40,7 +46,7 @@ public class MainActivity extends Activity {
 		
 		super.onCreate(savedInstanceState);
 		
-		setContentView(R.layout.activity_main);		
+		setContentView(R.layout.main);		
 
 		fastToast = Toast.makeText(this,"", Toast.LENGTH_SHORT);
 	}
@@ -61,13 +67,28 @@ public class MainActivity extends Activity {
 
 	public void onClickConnect(View view){
 		EditText etIp = (EditText) findViewById(R.id.EditTextIp);
-		EditText etPort = (EditText) findViewById(R.id.EditTextPort);
-		if(!etIsEmpty(etPort))SERVER_IP = etIp.getText().toString();
-		else toastFast("Enter a server IP");
-		if(!etIsEmpty(etPort)) SERVERPORT = Integer.parseInt(etPort.getText().toString());
+		//EditText etPort = (EditText) findViewById(R.id.EditTextPort);
 		
-		if(client!=null && client.isConnected()) toastFast("Already connected");
-		else new Thread(new ClientThread()).start();
+		if(!etIsEmpty(etIp)){	
+			String tmp = etIp.getText().toString();
+			
+			if(tmp.contains(":")){
+				String[] address = tmp.split(":");
+				SERVER_IP = address[0];
+				SERVERPORT = Integer.parseInt(address[1]);
+			}
+			else{
+				SERVER_IP = etIp.getText().toString();
+			}
+		}
+		else 
+			toastFast("Enter a server IP");
+		
+		if(client!=null && client.isConnected()) 
+			toastFast("Already connected");
+		else 
+			new Thread(new ClientThread()).start();
+		
 		return;
 	}
 	
@@ -135,6 +156,7 @@ public class MainActivity extends Activity {
 			this.runOnUiThread(new Runnable() {
 			    public void run() {
 					toastFast(String.format("Connected to %s,%d", ip,port));
+					new ReaderThreadTask().execute();
 			    }
 			});
 			return tc;
@@ -145,6 +167,8 @@ public class MainActivity extends Activity {
         	toastFast("Connection error...");
         	throw new IOException("Connection error..."); // try next port
         }
+        
+        
 		
         		
 	}
@@ -161,6 +185,7 @@ public class MainActivity extends Activity {
         return etText.getText().toString().trim().length() == 0;
     }
 	
+	
 	class ClientThread implements Runnable {
 
 		@Override
@@ -172,10 +197,69 @@ public class MainActivity extends Activity {
 				e.printStackTrace();
 			}
 				
-
+			
+			
 		}
 
 	}
+	
+	
+	private class ReaderThreadTask extends AsyncTask<Void,String,Void > {
+		InputStream instr = client.getInputStream();
+		TextView et = (TextView) findViewById(R.id.inputStreamTextView);
+
+		@Override
+	    protected void onPreExecute() {
+	    	
+			et.setText("Connected...\n");
+			et.setMovementMethod(new ScrollingMovementMethod());
+	    }
+	    
+		/* (non-Javadoc)
+	     * @see android.os.AsyncTask#doInBackground(Params[])
+	     */
+	    @Override
+	    protected Void doInBackground(Void... params) {
+	    	try
+	        {
+	            byte[] buff = new byte[1024];
+	            int ret_read = 0;
+
+	            do
+	            {
+	                ret_read = instr.read(buff);
+	                if(ret_read > 0)
+	                {
+	                	String s = new String(buff,0,ret_read);
+	                	publishProgress(s);
+	                	
+	                	
+	                }
+	            }
+	            while (ret_read >= 0);
+	        }
+	        catch (IOException e)
+	        {
+	            System.err.println("Exception while reading socket:" + e.getMessage());
+	        }
+			return null;
+			
+	    }
+	    
+	    
+
+	    protected void onProgressUpdate(String... values) {
+	    	et.append(values[0]);
+        	Log.i("Telnet InputStream", values[0]);
+			super.onProgressUpdate(values);
+		}
+
+		protected void onPostExecute(Void result) {
+	        et.setText("Disconnected");
+	    }
+	}
+	
+	
 	
 	
 	

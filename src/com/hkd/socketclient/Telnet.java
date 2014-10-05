@@ -1,7 +1,7 @@
 package com.hkd.socketclient;
 
 
-import java.io.InputStream;
+import java.io.BufferedInputStream;
 import java.io.OutputStream;
 import java.io.IOException;
 import java.net.SocketException;
@@ -16,22 +16,27 @@ import android.util.Log;
 public class Telnet {
 	private TelnetClient client = null;
 	private MainActivity main;
-	private InputStream instream;
 	private OutputStream outstream;
-	private ReaderThreadTask readerThread;
+//	private ReaderThreadTask readerThread;
 	private final String SERVER_IP;
 	private final int SERVERPORT;
-	
+
 	public Telnet(MainActivity activity, String ip, int port) throws IOException{
 		
 		main = activity;
 		SERVER_IP = ip;
 		SERVERPORT = port;
-		new ConnectTask().execute();		
+		client = new TelnetClient();
+		connect();
 		
 	}
 	
 	//TELNET
+	private void connect(){
+		ConnectTask connection = new ConnectTask();
+		connection.execute();
+	}
+	
 	private void connectToServer() throws IOException{
 		client = new TelnetClient();
 
@@ -44,11 +49,8 @@ public class Telnet {
 			client.connect(SERVER_IP, SERVERPORT);
 			main.runOnUiThread(new Runnable() {
 			    public void run() {
-			    	instream = client.getInputStream();
 					main.toastFast(String.format(Locale.ENGLISH, "Connected to %s,%d", SERVER_IP,SERVERPORT));
-					startReaderThread();
-					//readerThread = new ReaderThreadTask();
-					//readerThread.execute();
+					main.setConsole(String.format("Connected to %s:%d\n",SERVER_IP,SERVERPORT));
 			    }
 			});
 			
@@ -65,16 +67,6 @@ public class Telnet {
         
 
         		
-	}
-
-	protected void startReaderThread() {
-		main.runOnUiThread(new Runnable() {
-	    public void run() {
-	    	readerThread = new ReaderThreadTask();
-			readerThread.execute();
-	    }
-	});
-		
 	}
 
 	//TELNET HELPERS
@@ -109,83 +101,79 @@ public class Telnet {
 	}
 	
 	
-	public String getResponse(String cmd, int timeout){
-		readerThread.cancel(true); //pause reader thread
+	public boolean expectResponse(String cmd, String str, int timeout){
+		BufferedInputStream instr = (BufferedInputStream) client.getInputStream();
+		boolean result = false;
 		
-		//clear the buffer
 		try {
-			instream.skip(instream.available());
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
-		sendCommand(cmd);
-		boolean read_ok=false;
-		byte buff[] = new byte[1024];
-		int ret_read = 0;
-		try {
-			//TODO need to implement notifier
-	        Thread.sleep(50);
-	        
-	        
-	        ret_read = instream.read(buff);
-	        if((ret_read >= 1))
-	        {
-	            read_ok = true;
-	        }
+			int len=instr.available();
+			byte[] buff = new byte[1024];
+			int ret_read = 0;
 			
-		}
-		
-		catch (Exception e) {
+			sendCommand(cmd);
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			len=instr.available();
+			if(len>0){
+				ret_read=instr.read(buff,0,len);	
+			}
+			if(ret_read>0){
+				String res = new String(buff,0,ret_read);
+				Log.i("readline", res);
+				if(res.contains(str)){
+					result = true;
+				}
+				else{
+					result = false;
+				}
+			}
+			
+			
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		startReaderThread(); //resume reader
-		if(read_ok)
-			return new String(buff,0,ret_read);
-		else
-			return "";
+		return result;
 	}
 	
-	public boolean expectResponse(String cmd, String str, int timeout) {
-		readerThread.cancel(true); //pause reader thread
-		
-		//clear the buffer
-		try {
-			instream.skip(instream.available());
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
-		
-		sendCommand(cmd);
-		boolean read_ok=false;
-		boolean negotiation_ok=false;
+	public String getResponse(String cmd, int timeout){
+		BufferedInputStream instr = (BufferedInputStream) client.getInputStream();
+
 		
 		try {
-			byte buff[] = new byte[1024];
-	        //TODO need to implement notifier
-			Thread.sleep(50);
-	        int ret_read = 0;
-	        
-	        ret_read = instream.read(buff);
-	        if((ret_read >= 1))
-	        {
-	            read_ok = true;
-	        }
+			int len=instr.available();
+			byte[] buff = new byte[1024];
+			int ret_read = 0;
+			instr.read(buff,0,len);
+			sendCommand(cmd);
+			try {
+				Thread.sleep(50);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			len=instr.available();
+			if(len>0){
+				ret_read=instr.read(buff,0,len);	
+			}
+			if(ret_read>0){
+				String res = new String(buff,0,ret_read);
+				Log.i("readline", res);
+					
+				return res;
+			}
 			
-	        if(read_ok && (new String(buff,0,ret_read)).contains(str)) 
-	        	negotiation_ok = true;
-		}
-		
-		catch (Exception e) {
+			
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return null;
 		
-		startReaderThread(); //resume reader
-		
-		return negotiation_ok;
 	}
+
 
 	public boolean isConnected() {
 		return client.isConnected();
@@ -201,13 +189,13 @@ public class Telnet {
 			return false;
 		}
 		
-		readerThread.cancel(true);
+//		readerThread.cancel(true);
 		main.setConsole("Disconnected...");
 		return true;
 
 	}
 	
-	//THREADS	
+	//THREADS		
 	private class ConnectTask extends AsyncTask<Void,Void,Void> {
 
 		@Override
@@ -220,58 +208,6 @@ public class Telnet {
 
 	        return null;
 		}
-	}
-	
-	
-	private class ReaderThreadTask extends AsyncTask<Void,String,Void > {
-		@Override
-	    protected void onPreExecute() {
-	    	
-			main.setConsole("Connected...\n");
-	    }
-	    
-		/* (non-Javadoc)
-	     * @see android.os.AsyncTask#doInBackground(Params[])
-	     */
-	    @Override
-	    protected Void doInBackground(Void... params) {
-	    	try
-	        {
-	            byte[] buff = new byte[1024];
-	            int ret_read = 0;
-
-	            do
-	            {
-	                ret_read = instream.read(buff);
-	                if(ret_read > 0)
-	                {
-	                	String s = new String(buff,0,ret_read);
-	                	publishProgress(s);
-	                	
-	                	
-	                }
-	            }
-	            while (ret_read >= 0);
-	        }
-	        catch (IOException e)
-	        {
-	            System.err.println("Exception while reading socket:" + e.getMessage());
-	        }
-			return null;
-			
-	    }
-	    
-	    
-
-	    protected void onProgressUpdate(String... values) {
-	    	main.appendToConsole(values[0]);
-        	Log.i("Telnet InputStream", values[0]);
-			super.onProgressUpdate(values);
-		}
-
-		protected void onPostExecute(Void result) {
-	        main.setConsole("Disconnected");
-	    }
 	}
 
 

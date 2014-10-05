@@ -13,6 +13,7 @@ import android.widget.EditText;
 import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
 
@@ -41,6 +42,8 @@ public class MainActivity extends Activity {
 		numpicker=num;
 		numpicker.setMinValue(MIN_VOL);
 		numpicker.setMaxValue(MAX_VOL);
+		
+		
 				
 		fastToast = Toast.makeText(this,"", Toast.LENGTH_SHORT);
 		
@@ -50,6 +53,11 @@ public class MainActivity extends Activity {
 	}
 	
 	public void onVolumeChange(View view){
+		if(client==null || !client.isConnected()){
+			toastFast("Not connected to a server");			
+			return;
+		}
+		
 		pioneer.changeVolume(numpicker.getValue());							
 	}
 	
@@ -99,7 +107,16 @@ public class MainActivity extends Activity {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			pioneer = new PioneerController(client);
+			pioneer = new PioneerController(this,client);
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			ToggleButton power = (ToggleButton) findViewById(R.id.powerButton);
+			if(pioneer.pioneerIsOn()) power.setChecked(true);
+			else power.setChecked(false);
 				
 		return;
 	}
@@ -129,7 +146,32 @@ public class MainActivity extends Activity {
 	}
 	
 	public void onClickPower(View view){
+		if(client==null || !client.isConnected()){
+			toastFast("Not connected to a server");			
+			return;
+		}
+		
 		pioneer.togglePower();
+	}
+	
+	public void onClickPlay(View view){
+		pioneer.play();
+	}
+	
+	public void onClickStop(View view){
+		pioneer.stop();
+	}
+
+	public void onClickXbox(View view){
+		pioneer.input("Xbox");
+	}
+
+	public void onClickProjector(View view){
+		pioneer.input("Projector");
+	}
+	
+	public void onClickRP(View view){
+		pioneer.input("Radio Paradise");
 	}
 	
 	void toastFast(String str) {

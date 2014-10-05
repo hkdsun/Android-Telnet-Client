@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Socket Client</string>
+    <string name="app_name">Pioneer Telnet</string>
     <string name="action_settings">Settings</string>
-    <string name="command_hint">Enter your command here…</string>
+    <string name="command_hint">Manual commands go here…</string>
     <string name="ip_hint">hostname[:port]</string>
     <string name="port_hint">Port</string>
     <string name="send_button_text">Send</string>
     <string name="connect_button_text">Connect</string>
     <string name="disconnect_button_text">Disconnect</string>
-    <string name="input_stream_welcome_text">Response from server appears here…</string>
+    <string name="input_stream_welcome_text">Server Status</string>
+    <string name="xbox_button_text">Xbox/PC(ANALOG)</string>
+    <string name="projector_button_text">Projector</string>
+    <string name="pc_button_text">PC(HDMI)</string>
+    <string name="radio_button_text">Radio Paradise</string>
+    <string name="stop_button_text">Stop</string>
+    <string name="play_button_text">Play</string>
     <string name="volume_button_text">Adj. Vol.</string>
     
     

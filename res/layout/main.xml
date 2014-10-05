@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:descendantFocusability="beforeDescendants"
+	android:focusableInTouchMode="true"  >
 
     <EditText
         android:id="@+id/EditTextCommand"
@@ -12,8 +15,6 @@
         android:layout_alignParentTop="true"
         android:ems="10"
         android:hint="@string/command_hint" >
-
-        <requestFocus />
     </EditText>
 
     <EditText
@@ -23,10 +24,8 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_below="@+id/EditTextCommand"
-        android:digits="0123456789.:"
         android:ems="10"
-        android:hint="@string/ip_hint"
-        android:inputType="number" />
+        android:hint="@string/ip_hint" />
 
     <Button
         android:id="@+id/disconnectButton"
@@ -63,6 +62,8 @@
         android:id="@+id/powerButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignRight="@+id/sendButton"
         android:layout_below="@+id/sendButton"
         android:onClick="onClickPower"
         android:text="ToggleButton" />
@@ -72,28 +73,87 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_alignParentBottom="true"
-        android:layout_below="@+id/volumePicker"
+        android:layout_below="@+id/projectorButton"
+        android:background="@drawable/border"
         android:gravity="bottom"
         android:padding="15dip"
-        android:background="@drawable/border"
         android:scrollbars="vertical"
         android:text="@string/input_stream_welcome_text" />
-
-    <NumberPicker
-        android:id="@+id/volumePicker"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBottom="@+id/powerButton"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/disconnectButton" />
 
     <Button
         android:id="@+id/volumeButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/inputStreamTextView"
-        android:layout_toRightOf="@+id/sendButton"
+        android:layout_alignTop="@+id/volumePicker"
+        android:layout_toLeftOf="@+id/disconnectButton"
         android:onClick="onVolumeChange"
         android:text="@string/volume_button_text" />
+
+    <Button
+        android:id="@+id/xboxButton"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/inputStreamTextView"
+        android:layout_alignParentLeft="true"
+        android:layout_alignTop="@+id/projectorButton"
+        android:layout_toLeftOf="@+id/radioPButton"
+        android:onClick="onClickXbox"
+        android:text="@string/xbox_button_text" />
+
+    <Button
+        android:id="@+id/stopButton"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/xboxButton"
+        android:layout_alignLeft="@+id/volumeButton"
+        android:layout_alignRight="@+id/volumeButton"
+        android:layout_alignTop="@+id/playButton"
+        android:onClick="onClickStop"
+        android:text="@string/stop_button_text" />
+
+    <Button
+        android:id="@+id/playButton"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/xboxButton"
+        android:layout_alignParentLeft="true"
+        android:layout_alignRight="@+id/powerButton"
+        android:layout_below="@+id/powerButton"
+        android:onClick="onClickPlay"
+        android:text="@string/play_button_text" />
+
+    <Button
+        android:id="@+id/projectorButton"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/volumePicker"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/volumePicker"
+        android:onClick="onClickProjector"
+        android:text="@string/projector_button_text" />
+
+    <NumberPicker
+        android:id="@+id/volumePicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/disconnectButton"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/disconnectButton" />
+
+    <Button
+        android:id="@+id/radioPButton"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/xboxButton"
+        android:layout_alignLeft="@+id/stopButton"
+        android:layout_below="@+id/stopButton"
+        android:layout_toLeftOf="@+id/volumePicker"
+        android:onClick="onClickRP"
+        android:text="@string/radio_button_text" />
 
 </RelativeLayout>

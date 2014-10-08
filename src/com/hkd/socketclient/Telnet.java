@@ -9,7 +9,11 @@ import java.net.SocketException;
 import org.apache.commons.net.telnet.TelnetClient;
 
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import android.app.Activity;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -139,41 +143,14 @@ public class Telnet {
 		return result;
 	}
 	
-	public String getResponse(String cmd, int timeout){
-		BufferedInputStream instr = (BufferedInputStream) client.getInputStream();
-
-		
-		try {
-			int len=instr.available();
-			byte[] buff = new byte[1024];
-			int ret_read = 0;
-			instr.read(buff,0,len);
-			sendCommand(cmd);
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			len=instr.available();
-			if(len>0){
-				ret_read=instr.read(buff,0,len);	
-			}
-			if(ret_read>0){
-				String res = new String(buff,0,ret_read);
-				Log.i("readline", res);
-					
-				return res;
-			}
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
+	public GetResponseTask getResponse(Activity activity){
+		return new GetResponseTask(activity);
 		
 	}
-
+	
+	public BufferedInputStream getStream(){
+		return (BufferedInputStream) client.getInputStream();
+	}
 
 	public boolean isConnected() {
 		return client.isConnected();

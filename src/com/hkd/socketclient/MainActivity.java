@@ -58,7 +58,8 @@ public class MainActivity extends Activity {
 			return;
 		}
 		
-		pioneer.changeVolume(numpicker.getValue());							
+		//pioneer.changeVolume(numpicker.getValue());
+		pioneer.getVolume();
 	}
 	
 	@Override
@@ -108,22 +109,24 @@ public class MainActivity extends Activity {
 				e.printStackTrace();
 			}
 			pioneer = new PioneerController(this,client);
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			ToggleButton power = (ToggleButton) findViewById(R.id.powerButton);
-			if(pioneer.pioneerIsOn()) power.setChecked(true);
-			else power.setChecked(false);
+			
+			pioneer.pioneerIsOn();
 				
+		return;
+	}
+	
+	public void setPower(boolean on){
+		ToggleButton power = (ToggleButton) findViewById(R.id.powerButton);
+		power.setChecked(on);
 		return;
 	}
 	
 	public void onClickDisconnect(View view){
 		if (client!=null && client.isConnected()) {
-			if(client.disconnect()) toastFast("Disconnected from server");
+			if(client.disconnect()){
+				toastFast("Disconnected from server");
+				setPower(false);
+			}
 			else toastFast("Error disconnecting from server");
 		}
 		else{

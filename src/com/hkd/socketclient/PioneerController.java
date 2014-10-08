@@ -1,12 +1,20 @@
 package com.hkd.socketclient;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.*;
 
 import android.app.Activity;
+import android.os.AsyncTask;
+import android.util.Log;
 
 public class PioneerController{
 	private Telnet pioneerclient;
 	private MainActivity main;
+	protected static final String TAG = "PioneerController";
+	private int volume=-1;
+
 	
 	public PioneerController(Activity mainActivity,Telnet telnetclient){
 		pioneerclient = telnetclient;
@@ -14,41 +22,120 @@ public class PioneerController{
 	}
 	
 	public int getVolume(){
+		Log.d("GetVolume", "start getting volume");
+		AsyncTask<Void,Void,Integer> task = new AsyncTask<Void,Void,Integer>(){
+		GetResponseTask response = pioneerclient.getResponse(main);
+			protected void onPreExecute(){
+				main.setConsole("getting volume\n");
+				
+				response.execute(pioneerclient,"?V");
+			}
+			
+			@Override
+			protected Integer doInBackground(Void... params) {
+				String status;
+				try {
+					status = response.get(5000,TimeUnit.MILLISECONDS);
+				} catch (InterruptedException | ExecutionException
+						| TimeoutException e) {
+					volume = -1;
+					e.printStackTrace();
+					return volume;
+				}
+				
+				
+				
+				Pattern pattern = Pattern.compile("VOL(.*?)");
+				
+				Matcher matcher = pattern.matcher(status);
+				
+				status = matcher.replaceFirst("");
+				
+				status = status.replace("\r\n", "");
+				status = status.replace(" ", "");
+				if(isNumeric(status)){
+					volume = Integer.parseInt(status);
+				}
+				else{
+					volume = -1;
+				}
+				return volume;
+			}
+			
+			protected void onPostExecute(Integer result){
+				if(result > -1){
+					main.appendToConsole("Volume is at " + volume + "\n");
+				}
+				else{
+					main.appendToConsole("Error getting volume\n");
+				}
+			}
+			
+		};
 		
-		String status = pioneerclient.getResponse("?V", 1);
+		task.execute();
 		
-		Pattern pattern = Pattern.compile("VOL(.*?)");
+		return volume;
 		
-		Matcher matcher = pattern.matcher(status);
 		
-		status = matcher.replaceFirst("");
 		
-		status = status.replace("\r\n", "");
-		status = status.replace(" ", "");
 		
-		int curvol = Integer.parseInt(status);
-		
-		return curvol;
 		
 	}
 	
 	public boolean pioneerIsOn(){
 		
-		String status = pioneerclient.getResponse("?P", 1);
 		
-		status = status.replace("\r\n", "");
-		status = status.replace(" ", "");
+		Log.d("pioneerIsOn", "start power transaction");
+		AsyncTask<Void, Void, Boolean> task = new AsyncTask<Void,Void,Boolean>(){
+		GetResponseTask response = pioneerclient.getResponse(main);
+			protected void onPreExecute(){
+				main.setConsole("getting power\n");
+				
+				response.execute(pioneerclient,"?P");
+			}
+			
+			@Override
+			protected Boolean doInBackground(Void... params) {
+				String status;
+
+				try {
+					status = response.get(5000,TimeUnit.MILLISECONDS);
+				} catch (InterruptedException | ExecutionException
+						| TimeoutException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					return false;
+				}
+				status = status.replace("\r\n", "");
+				status = status.replace(" ", "");
+				
+				if(status.contains("PWR0")) 
+					return true;
+				else 
+					return false;
+			}
+			
+			protected void onPostExecute(Boolean result){
+				main.setPower(result);
+			}
+			
+		};
 		
-		if(status.contains("PWR0")) 
-			return true;
-		else 
-			return false;		
+		task.execute();
+		
+		
+		main.setConsole("Didn't receive power response in time");
+		return false;
+				
+				
 	}
 	
 	public boolean changeVolume(int newVal) {
 		PioneerVolume vol = new PioneerVolume(newVal);
 		main.appendToConsole("Attempting to change volume..please wait\n");
-		if(getVolume()>vol.pioneerVolume)
+		getVolume();		
+		if(volume>vol.pioneerVolume)
 			return decreaseVolume(vol);
 		else
 			return increaseVolume(vol);
@@ -125,6 +212,19 @@ public class PioneerController{
 		else{
 			pioneerclient.sendCommand(String.format("%02dFN", fn));
 		}
+	}
+	
+	public static boolean isNumeric(String str)  
+	{  
+	  try  
+	  {  
+	    double d = Double.parseDouble(str);  
+	  }  
+	  catch(NumberFormatException nfe)  
+	  {  
+	    return false;  
+	  }  
+	  return true;  
 	}
 	
 	public class PioneerVolume implements Comparable<PioneerVolume>{

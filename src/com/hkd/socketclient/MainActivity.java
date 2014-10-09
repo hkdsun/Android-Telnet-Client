@@ -65,12 +65,32 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onStop() {
 		if (client!=null && client.isConnected()) {
-			if(client.disconnect()) toastFast("Disconnected from server");
+			if(disconnect()) toastFast("Disconnected from server");
 			else toastFast("Error disconnecting from server");
 		}		
 		super.onStop();
 	}
 
+	
+	void toastFast(String str) {
+		
+		fastToast.setText(str);
+		fastToast.show();
+	}
+
+	private boolean etIsEmpty(EditText etText) {
+        return etText.getText().toString().trim().length() == 0;
+    }
+	
+	
+	private boolean disconnect(){
+		if(client.disconnect()){
+			setPower(false);
+			return true;
+		}
+		return false;
+	}
+	
 	public void onClickConnect(View view){
 		EditText etIp = (EditText) findViewById(R.id.EditTextIp);
 		//EditText etPort = (EditText) findViewById(R.id.EditTextPort);
@@ -123,9 +143,8 @@ public class MainActivity extends Activity {
 	
 	public void onClickDisconnect(View view){
 		if (client!=null && client.isConnected()) {
-			if(client.disconnect()){
+			if(disconnect()){
 				toastFast("Disconnected from server");
-				setPower(false);
 			}
 			else toastFast("Error disconnecting from server");
 		}
@@ -176,17 +195,7 @@ public class MainActivity extends Activity {
 	public void onClickRP(View view){
 		pioneer.input("Radio Paradise");
 	}
-	
-	void toastFast(String str) {
-		
-		fastToast.setText(str);
-		fastToast.show();
-	}
 
-	private boolean etIsEmpty(EditText etText) {
-        return etText.getText().toString().trim().length() == 0;
-    }
-	
 	public void appendToConsole(String str){
 		et.append(str);
 		return;

@@ -105,42 +105,8 @@ public class Telnet {
 	}
 	
 	
-	public boolean expectResponse(String cmd, String str, int timeout){
-		BufferedInputStream instr = (BufferedInputStream) client.getInputStream();
-		boolean result = false;
-		
-		try {
-			int len=instr.available();
-			byte[] buff = new byte[1024];
-			int ret_read = 0;
-			
-			sendCommand(cmd);
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			len=instr.available();
-			if(len>0){
-				ret_read=instr.read(buff,0,len);	
-			}
-			if(ret_read>0){
-				String res = new String(buff,0,ret_read);
-				Log.i("readline", res);
-				if(res.contains(str)){
-					result = true;
-				}
-				else{
-					result = false;
-				}
-			}
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return result;
+	public ExpectResponseTask expectResponse(Activity activity){
+		return  new ExpectResponseTask(activity);
 	}
 	
 	public GetResponseTask getResponse(Activity activity){

@@ -83,9 +83,9 @@ public class PioneerController{
 		
 	}
 	
-	public boolean pioneerIsOn(){
+	public boolean pioneerIsOn(boolean block){
 		
-		
+		boolean blockresult;
 		Log.d("pioneerIsOn", "start power transaction");
 		AsyncTask<Void, Void, Boolean> task = new AsyncTask<Void,Void,Boolean>(){
 		GetResponseTask response = pioneerclient.getResponse(main);
@@ -118,13 +118,23 @@ public class PioneerController{
 			
 			protected void onPostExecute(Boolean result){
 				main.setPower(result);
+				
 			}
 			
 		};
 		
 		task.execute();
 		
-		
+		if(block){
+			try {
+				task.get(5000, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException
+					| TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
 		main.setConsole("Didn't receive power response in time");
 		return false;
 				
@@ -136,14 +146,39 @@ public class PioneerController{
 		main.appendToConsole("Attempting to change volume..please wait\n");
 		getVolume();		
 		if(volume>vol.pioneerVolume)
-			return decreaseVolume(vol);
+			//return decreaseVolume(vol);
+			return false;
 		else
-			return increaseVolume(vol);
+			//return increaseVolume(vol);
+			return  false;
 	}
 	
 	//TODO implement a universal getStateOf(ENUM) function
 	
 	public boolean togglePower() {
+		
+		AsyncTask<Void, Void, Boolean> expecttask = new AsyncTask<Void,Void,Boolean>(){
+			GetResponseTask response = pioneerclient.getResponse(main);
+
+			@Override
+			protected Boolean doInBackground(Void... params) {
+				// TODO Auto-generated method stub
+				return null;
+			}
+		};
+		
+		GetResponseAsync responsetask = new GetResponseAsync("?P", 1000);
+		
+		if(responsetask.execute().get()){
+			//Turn off
+			expecttask.execute(params);
+		}
+		else{
+			//Turn on
+			expecttask.execute(params);
+		}
+		
+		
 		if(pioneerclient.expectResponse("?P","PWR0",1))
 			return pioneerclient.expectResponse("PF","PWR2",1);
 		else if(pioneerclient.expectResponse("?P","PWR2",1))
@@ -152,7 +187,10 @@ public class PioneerController{
 		
 	}
 	
+	/* increase/decrease volume
 	private boolean increaseVolume(PioneerVolume newVal){
+		
+		
 		boolean end = false;
 		while(!end){
 			end = pioneerclient.expectResponse("VU",String.format("VOL%03d", newVal.pioneerVolume), 1);
@@ -174,7 +212,7 @@ public class PioneerController{
 		return true;
 		
 	}
-	
+	*/
 	public void play(){
 		pioneerclient.sendCommand("30PB");
 		
@@ -243,4 +281,43 @@ public class PioneerController{
 
 		
 	}
+
+	private class  GetResponseAsync extends AsyncTask<Void,Void,String>{
+		final String cmd;
+		final int timeout;
+		GetResponseTask response;
+		
+		public GetResponseAsync(String cmd, int timeout){
+			this.cmd = cmd;
+			this.timeout = timeout;
+			response = pioneerclient.getResponse(main);
+		}
+		
+		
+		protected void onPreExecute(){			
+			response.execute(pioneerclient,cmd);
+		}
+		
+		@Override
+		protected String doInBackground(Void... params) {
+			String result;
+
+			try {
+				result = response.get(timeout,TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException
+					| TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
+			result = result.replace("\r\n", "");
+			result = result.replace(" ", "");
+			
+			return result;
+		}
+		
+		
+
+	}
 }
+

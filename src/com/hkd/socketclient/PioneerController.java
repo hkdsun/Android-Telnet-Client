@@ -1,5 +1,6 @@
 package com.hkd.socketclient;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -12,6 +13,8 @@ import android.util.Log;
 public class PioneerController{
 	private Telnet pioneerclient;
 	private MainActivity main;
+	final boolean BLOCK = true; 
+	final int MAXTIMEOUT = 5000; // time.MS
 	protected static final String TAG = "PioneerController";
 	private int volume=-1;
 
@@ -21,7 +24,7 @@ public class PioneerController{
 		main = (MainActivity) mainActivity;
 	}
 	
-	public int getVolume(){
+	public int getVolume(boolean block){
 		Log.d("GetVolume", "start getting volume");
 		AsyncTask<Void,Void,Integer> task = new AsyncTask<Void,Void,Integer>(){
 		GetResponseTask response = pioneerclient.getResponse(main);
@@ -75,6 +78,18 @@ public class PioneerController{
 		
 		task.execute();
 		
+		if(block){
+			try {
+				task.get(MAXTIMEOUT, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		return volume;
 		
 		
@@ -85,7 +100,6 @@ public class PioneerController{
 	
 	public boolean pioneerIsOn(boolean block){
 		
-		boolean blockresult;
 		Log.d("pioneerIsOn", "start power transaction");
 		AsyncTask<Void, Void, Boolean> task = new AsyncTask<Void,Void,Boolean>(){
 		GetResponseTask response = pioneerclient.getResponse(main);
@@ -144,56 +158,47 @@ public class PioneerController{
 	public boolean changeVolume(int newVal) {
 		PioneerVolume vol = new PioneerVolume(newVal);
 		main.appendToConsole("Attempting to change volume..please wait\n");
-		getVolume();		
+		getVolume(BLOCK);		
 		if(volume>vol.pioneerVolume)
-			//return decreaseVolume(vol);
-			return false;
+			return decreaseVolume(vol);
 		else
-			//return increaseVolume(vol);
-			return  false;
+			return increaseVolume(vol);
 	}
 	
 	//TODO implement a universal getStateOf(ENUM) function
 	
 	public boolean togglePower() {
 		
-		AsyncTask<Void, Void, Boolean> expecttask = new AsyncTask<Void,Void,Boolean>(){
-			GetResponseTask response = pioneerclient.getResponse(main);
-
-			@Override
-			protected Boolean doInBackground(Void... params) {
-				// TODO Auto-generated method stub
-				return null;
-			}
-		};
-		
 		GetResponseAsync responsetask = new GetResponseAsync("?P", 1000);
+		ExpectAsync expectoff = new ExpectAsync("PF", "PWR2", 1000);
+		ExpectAsync expecton = new ExpectAsync("PO", "PWR0", 1000);
 		
-		if(responsetask.execute().get()){
-			//Turn off
-			expecttask.execute(params);
+		try {
+			if(responsetask.execute().get().contains("PWR0")){
+				//Turn off
+				expectoff.execute();
+			}
+			else{
+				//Turn on
+				expecton.execute();
+			}
+		} catch (InterruptedException | ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		else{
-			//Turn on
-			expecttask.execute(params);
-		}
 		
 		
-		if(pioneerclient.expectResponse("?P","PWR0",1))
-			return pioneerclient.expectResponse("PF","PWR2",1);
-		else if(pioneerclient.expectResponse("?P","PWR2",1))
-			return pioneerclient.expectResponse("PO","PWR0",1);
 		return false;
 		
 	}
 	
-	/* increase/decrease volume
+	
 	private boolean increaseVolume(PioneerVolume newVal){
 		
 		
 		boolean end = false;
 		while(!end){
-			end = pioneerclient.expectResponse("VU",String.format("VOL%03d", newVal.pioneerVolume), 1);
+		//	end = pioneerclient.expectResponse("VU",, 1);
 		}
 		main.appendToConsole(String.format("Successfully set volume to %d\n", newVal.pioneerVolume/2-1));
 
@@ -203,16 +208,13 @@ public class PioneerController{
 	}
 	
 	private boolean decreaseVolume(PioneerVolume newVal){
-		boolean end = false;
-		while(!end){
-			end = pioneerclient.expectResponse("VD",String.format("VOL%03d", newVal.pioneerVolume), 1);
-		}
-		main.appendToConsole(String.format("Successfully set volume to %d\n", newVal.pioneerVolume/2-1));
-	
+
+		new AdjustVolume("VD", String.format("VOL%03d", newVal.pioneerVolume), 5000).execute();
+			
 		return true;
 		
 	}
-	*/
+
 	public void play(){
 		pioneerclient.sendCommand("30PB");
 		
@@ -319,5 +321,82 @@ public class PioneerController{
 		
 
 	}
+	
+	private class  AdjustVolume extends AsyncTask<Void,Void,Boolean>{
+		final String cmd;
+		final String expect;
+		final int timeout;
+		ExpectResponseTask task;
+		
+		public AdjustVolume(String cmd, String expect, int timeout){
+			this.cmd = cmd;
+			this.timeout = timeout;
+			this.expect = expect;
+			
+		}
+		
+		
+		
+		@Override
+		protected Boolean doInBackground(Void... params) {
+			Boolean result = false;
+
+			while(!result){
+				try {
+					task = pioneerclient.expectResponse(main);
+					result = task.execute(pioneerclient,cmd,expect).get(timeout,TimeUnit.MILLISECONDS );
+				} catch (InterruptedException | ExecutionException
+						| TimeoutException e) {
+					e.printStackTrace();
+				}	
+			}
+			
+			return result;
+		}
+		
+		
+
+	}
+	
+	private class  ExpectAsync extends AsyncTask<Void,Void,Boolean>{
+		final String cmd;
+		final String expect;
+		final int timeout;
+		ExpectResponseTask task;
+		
+		public ExpectAsync(String cmd, String expect, int timeout){
+			this.cmd = cmd;
+			this.timeout = timeout;
+			this.expect = expect;
+			task = pioneerclient.expectResponse(main);
+		}
+		
+		
+		protected void onPreExecute(){			
+			task.execute(pioneerclient,cmd,expect);
+		}
+		
+		@Override
+		protected Boolean doInBackground(Void... params) {
+			Boolean result = false;
+
+
+			try {
+				result = task.get(timeout,TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException
+					| TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+		
+			return result;
+		}
+		
+		
+
+	}
+	
+	
+	
 }
 

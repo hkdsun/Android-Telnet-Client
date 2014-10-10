@@ -58,8 +58,8 @@ public class MainActivity extends Activity {
 			return;
 		}
 		
-		//pioneer.changeVolume(numpicker.getValue());
-		pioneer.getVolume();
+		pioneer.changeVolume(numpicker.getValue());
+		//pioneer.getVolume();
 	}
 	
 	@Override
@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
 			}
 			pioneer = new PioneerController(this,client);
 			
-			pioneer.pioneerIsOn();
+			pioneer.pioneerIsOn(true);
 				
 		return;
 	}

@@ -1,6 +1,5 @@
 package com.hkd.socketclient;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -17,6 +16,7 @@ public class PioneerController{
 	final int MAXTIMEOUT = 5000; // time.MS
 	protected static final String TAG = "PioneerController";
 	private int volume=-1;
+	private AdjustVolume adjusttask = null;
 
 	
 	public PioneerController(Activity mainActivity,Telnet telnetclient){
@@ -29,8 +29,6 @@ public class PioneerController{
 		AsyncTask<Void,Void,Integer> task = new AsyncTask<Void,Void,Integer>(){
 		GetResponseTask response = pioneerclient.getResponse(main);
 			protected void onPreExecute(){
-				main.setConsole("getting volume\n");
-				
 				response.execute(pioneerclient,"?V");
 			}
 			
@@ -157,9 +155,10 @@ public class PioneerController{
 	
 	public boolean changeVolume(int newVal) {
 		PioneerVolume vol = new PioneerVolume(newVal);
-		main.appendToConsole("Attempting to change volume..please wait\n");
 		getVolume(BLOCK);		
-		if(volume>vol.pioneerVolume)
+		if(volume == vol.pioneerVolume)
+			return true;
+		else if(volume>vol.pioneerVolume)
 			return decreaseVolume(vol);
 		else
 			return increaseVolume(vol);
@@ -195,23 +194,28 @@ public class PioneerController{
 	
 	private boolean increaseVolume(PioneerVolume newVal){
 		
-		
-		boolean end = false;
-		while(!end){
-		//	end = pioneerclient.expectResponse("VU",, 1);
+		if(adjusttask==null){
+			adjusttask = new AdjustVolume("VU", String.format("VOL%03d", newVal.pioneerVolume), 5000);
+			adjusttask.execute();
+			return true;
 		}
-		main.appendToConsole(String.format("Successfully set volume to %d\n", newVal.pioneerVolume/2-1));
-
-		return true;
-		
-		
+		else{
+			main.appendToConsole("Currently setting volume..please wait\n");
+			return false;
+		}
 	}
 	
 	private boolean decreaseVolume(PioneerVolume newVal){
 
-		new AdjustVolume("VD", String.format("VOL%03d", newVal.pioneerVolume), 5000).execute();
-			
-		return true;
+		if(adjusttask==null){
+			adjusttask = new AdjustVolume("VD", String.format("VOL%03d", newVal.pioneerVolume), 5000);
+			adjusttask.execute();
+			return true;
+		}
+		else{
+			main.appendToConsole("Currently setting volume..please wait\n");
+			return false;
+		}
 		
 	}
 
@@ -271,7 +275,13 @@ public class PioneerController{
 		public int pioneerVolume;
 		
 		public PioneerVolume(int humanValue){
-			pioneerVolume = (int) (humanValue*2+1);
+			if(humanValue == 0){
+				pioneerVolume = 0;
+			}
+			else{
+				pioneerVolume = (int) (humanValue*2+1);	
+			}
+			
 		}
 
 		@Override
@@ -332,26 +342,41 @@ public class PioneerController{
 			this.cmd = cmd;
 			this.timeout = timeout;
 			this.expect = expect;
-			
+			task = pioneerclient.expectResponse(main);
 		}
 		
-		
+		protected void onPreExecute(){
+			task.execute(pioneerclient,cmd,expect);
+		}
 		
 		@Override
 		protected Boolean doInBackground(Void... params) {
 			Boolean result = false;
 
-			while(!result){
-				try {
-					task = pioneerclient.expectResponse(main);
-					result = task.execute(pioneerclient,cmd,expect).get(timeout,TimeUnit.MILLISECONDS );
-				} catch (InterruptedException | ExecutionException
-						| TimeoutException e) {
-					e.printStackTrace();
-				}	
+			try {
+				result = task.get(timeout,TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException
+					| TimeoutException e) {
+				Log.d("AdjustVolume", "Timeout");
+				e.printStackTrace();
+			}	
+			
+			if(result){
+				return result;
+			}
+			else{
+				new AdjustVolume(cmd, expect, timeout).execute();
+				return false;
 			}
 			
-			return result;
+		}
+		
+		
+		protected void onPostExecute(Boolean result){
+			if(result){
+				main.setConsole("Volume set successfully\n");
+				adjusttask = null;
+			}
 		}
 		
 		

@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
 		numpicker=num;
 		numpicker.setMinValue(MIN_VOL);
 		numpicker.setMaxValue(MAX_VOL);
-		
+
 		
 				
 		fastToast = Toast.makeText(this,"", Toast.LENGTH_SHORT);
@@ -129,8 +129,8 @@ public class MainActivity extends Activity {
 				e.printStackTrace();
 			}
 			pioneer = new PioneerController(this,client);
-			
 			pioneer.pioneerIsOn(true);
+			numpicker.setValue((pioneer.getVolume(true)-1)/2);
 				
 		return;
 	}

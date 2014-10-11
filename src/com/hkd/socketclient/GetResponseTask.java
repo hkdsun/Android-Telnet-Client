@@ -61,7 +61,6 @@ public class GetResponseTask extends AsyncTask<Object, Void, String> {
 
 	@Override
 	protected void onProgressUpdate(Void... values) {
-		((MainActivity) main).appendToConsole("Getting response from server...please wait\n");
 		super.onProgressUpdate(values);
 	}
 

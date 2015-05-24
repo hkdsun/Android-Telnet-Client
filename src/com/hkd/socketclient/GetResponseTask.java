@@ -2,9 +2,6 @@ package com.hkd.socketclient;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import android.app.Activity;
 import android.os.AsyncTask;
@@ -20,7 +17,7 @@ public class GetResponseTask extends AsyncTask<Object, Void, String> {
 	@Override
 	protected String doInBackground(Object... params) {
 		try {
-			Telnet client = (Telnet) params[0];
+			TelnetConnection client = (TelnetConnection) params[0];
 			BufferedInputStream instr = client.getStream();
 			String cmd = (String) params[1];
 			

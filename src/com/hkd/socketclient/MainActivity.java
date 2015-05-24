@@ -17,7 +17,7 @@ import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
 
-	private Telnet client = null;
+	private TelnetConnection client = null;
 	private PioneerController pioneer = null;
 	private Toast fastToast;
 	private static TextView et;
@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
 			toastFast("Already connected");
 		else
 			try {
-				client = new Telnet(this, SERVER_IP,SERVERPORT);
+				client = new TelnetConnection(this, SERVER_IP,SERVERPORT);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

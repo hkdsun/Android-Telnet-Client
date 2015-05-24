@@ -10,7 +10,7 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 public class PioneerController{
-	private Telnet pioneerclient;
+	private TelnetConnection pioneerclient;
 	private MainActivity main;
 	final boolean BLOCK = true; 
 	final int MAXTIMEOUT = 5000; // time.MS
@@ -19,7 +19,7 @@ public class PioneerController{
 	private AdjustVolume adjusttask = null;
 
 	
-	public PioneerController(Activity mainActivity,Telnet telnetclient){
+	public PioneerController(Activity mainActivity,TelnetConnection telnetclient){
 		pioneerclient = telnetclient;
 		main = (MainActivity) mainActivity;
 	}

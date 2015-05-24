@@ -15,7 +15,7 @@ public class ExpectResponseTask extends AsyncTask<Object, Void, Boolean> {
 	}
 	@Override
 	protected Boolean doInBackground(Object... params) {
-		Telnet client = (Telnet) params[0];
+		TelnetConnection client = (TelnetConnection) params[0];
 		String cmd = (String) params[1];
 		String str = (String) params[2];
 		BufferedInputStream instr = (BufferedInputStream) client.getStream();

@@ -5,6 +5,8 @@ import java.io.*;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.Thread.sleep;
+
 
 public class TelnetClient {
     private TelnetConnection client;
@@ -14,9 +16,15 @@ public class TelnetClient {
 
     public TelnetClient(String ip, int port) throws IOException {
         client = new TelnetConnection(ip,port);
+        client.connect();
         connection = client.getConnection();
         outstream = client.getOutput();
         instream = client.getReader();
+    }
+
+    public void close() throws IOException {
+        connection.disconnect();
+        return;
     }
 
     /**
@@ -44,7 +52,8 @@ public class TelnetClient {
 		}
 	}
 
-    public String getResponse(String cmd,  TimeUnit timeout) throws IOException {
+    public String getResponse(String cmd,  int line) throws IOException, InterruptedException {
+
         if(client==null || !client.isConnected()){
             throw new IOException("Unable to send message to disconnected client");
         }
@@ -56,17 +65,47 @@ public class TelnetClient {
 
         byte[] cmdbyte = stringBuilder.toString().getBytes();
 
-        FilterInputStream inspy;
-
-        connection.registerSpyStream(spy);
-
-        // TODO
-
+        BufferedReader buf = spawnSpy();
+        buf = new BufferedReader(new InputStreamReader(new BufferedInputStream(instream)));
         outstream.write(cmdbyte, 0, cmdbyte.length);
         outstream.flush();
 
+        String res = null;
+        for (int i = 0; i < line+1; i++) {
+            res = buf.readLine();
+        }
+        buf.close();
+        return res;
+    }
 
+    public BufferedReader spawnSpy() throws InterruptedException {
+        PipedInputStream pipe = new PipedInputStream();
+        Thread t = new Thread(new ReaderThread(pipe));
+        t.start();
+        synchronized (t){
+            t.wait();
+        }
+        return new BufferedReader(new InputStreamReader(pipe));
+    }
 
-        return "hello world";
+    public class ReaderThread implements Runnable {
+        PipedInputStream pipe;
+        @Override
+        public void run() {
+            synchronized (this){
+                PipedOutputStream spy = new PipedOutputStream();
+                connection.registerSpyStream(spy);
+                try {
+                    spy.connect(pipe);
+                    this.notifyAll();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public ReaderThread(PipedInputStream stream){
+            pipe = stream;
+        }
     }
 }

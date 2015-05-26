@@ -36,7 +36,7 @@ public class TelnetClientTest{
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
         client.sendCommand("PF");
         sleep(500);
-        assertEquals(client.expectResponse("PO", "VOL029"), "VOL029");
+        assertEquals(client.expectResponse("PO", "PWR0"), "PWR0");
         client.close();
     }
 
@@ -52,8 +52,7 @@ public class TelnetClientTest{
     public void testSendUntilResponse() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
         client.sendCommand("PO");
-        client.sendUntilResponse("VD","VOL000", 500);
-        client.sendUntilResponse("VU","VOL029", 500);
+        client.sendUntilResponse("VD",200,"VOL000");
+        client.sendUntilResponse("VU",200,"VOL029","VOL031","VOL033");
     }
-
 }

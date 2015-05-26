@@ -3,7 +3,9 @@ package com.hkd.socketclient;
 import org.junit.*;
 
 import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
@@ -14,7 +16,8 @@ public class TelnetClientTest{
     public void testSendCommand1() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
 
-        assertEquals(client.sendCommand("PF"), true);
+        assertEquals(client.sendCommand("PF"),true);
+        sleep(500);
         assertEquals(client.sendCommand("PO"),true);
         client.close();
     }
@@ -22,35 +25,35 @@ public class TelnetClientTest{
     @Test
     public void testGetResponse1() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
-
-        assertEquals(client.getResponse("?VOL",1), "VOL003");
+        client.sendCommand("PF");
+        sleep(500);
+        assertEquals(client.getResponse("?PWR"), "PWR2");
         client.close();
     }
 
     @Test
-    public void testGetResponse2() throws Exception {
+    public void testExpectResponse() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
         client.sendCommand("PF");
         sleep(500);
-        assertEquals(client.getResponse("PO",4), "VOL003");
+        assertEquals(client.expectResponse("PO", "VOL029"), "VOL029");
+        client.close();
+    }
+
+    @Test(expected = TimeoutException.class)
+    public void testExpectResponseException() throws Exception {
+        TelnetClient client = new TelnetClient("192.168.0.105", 8102);
+        client.sendCommand("PF");
+        client.expectResponse("PO","VOL003");
         client.close();
     }
 
     @Test
-    public void testSpawnSpy1() throws Exception {
+    public void testSendUntilResponse() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
-
-        BufferedReader buf = client.spawnSpy();
-
-        String[] cmds = {"PF","PO", "?VOL"};
-
-        for (int i = 0; i < cmds.length; i++) {
-            client.sendCommand(cmds[i]);
-            for (String line = buf.readLine(); buf.ready(); line = buf.readLine()) {
-                sleep(500);
-                System.out.println(line);
-            }
-        }
-        client.close();
+        client.sendCommand("PO");
+        client.sendUntilResponse("VD","VOL000", 500);
+        client.sendUntilResponse("VU","VOL029", 500);
     }
+
 }

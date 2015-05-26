@@ -3,7 +3,8 @@ package com.hkd.socketclient;
 
 import java.io.*;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Thread.sleep;
 
@@ -13,48 +14,80 @@ public class TelnetClient {
     private OutputStream outstream;
     private org.apache.commons.net.telnet.TelnetClient connection;
     private BufferedInputStream instream;
+    AtomicInteger guy;
 
     public TelnetClient(String ip, int port) throws IOException {
-        client = new TelnetConnection(ip,port);
+        client = new TelnetConnection(ip, port);
         client.connect();
         connection = client.getConnection();
         outstream = client.getOutput();
         instream = client.getReader();
+        guy = new AtomicInteger();
     }
 
     public void close() throws IOException {
         connection.disconnect();
-        return;
     }
 
     /**
-     *
      * @param cmd the string of message you want to send
      * @return true if message was sent successfully
      */
-    public boolean sendCommand(String cmd){
-		if(client==null || !client.isConnected()){
-			return false;
-		}
-		StringBuilder stringBuilder = new StringBuilder();
+    public boolean sendCommand(String cmd) {
+        if (client == null || !client.isConnected()) {
+            return false;
+        }
+        StringBuilder stringBuilder = new StringBuilder();
 
-		stringBuilder.append(cmd.toUpperCase(Locale.ENGLISH));
-		stringBuilder.append("\n\r");
-		
-		byte[] cmdbyte = stringBuilder.toString().getBytes();
+        stringBuilder.append(cmd.toUpperCase(Locale.ENGLISH));
+        stringBuilder.append("\n\r");
 
-		try {
-			outstream.write(cmdbyte, 0, cmdbyte.length);
-			outstream.flush();
-			return true;
-		} catch (Exception e1) {
-			return false;
-		}
-	}
+        byte[] cmdbyte = stringBuilder.toString().getBytes();
 
-    public String getResponse(String cmd,  int line) throws IOException, InterruptedException {
+        try {
+            outstream.write(cmdbyte, 0, cmdbyte.length);
+            outstream.flush();
+            return true;
+        } catch (Exception e1) {
+            return false;
+        }
+    }
 
-        if(client==null || !client.isConnected()){
+    //TODO implement a nice timeout
+    public boolean sendUntilResponse(String cmd, final String expected, int speed) throws InterruptedException {
+        final boolean[] notSeen = {true};
+        final BufferedReader stream = new BufferedReader(spawnSpy());
+        Runnable r = new Runnable() {
+            @Override
+            public void run(){
+                String line = null;
+                try {
+                    while ((line = stream.readLine()) != null){
+                        if(line.contains(expected))
+                            break;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                notSeen[0] = false;
+            }
+        };
+        new Thread(r).start();
+        while(notSeen[0]){
+            sendCommand(cmd);
+            sleep(speed);
+        }
+        try {
+            stream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+    public String getResponse(String cmd) throws IOException, InterruptedException {
+
+        if (client == null || !client.isConnected()) {
             throw new IOException("Unable to send message to disconnected client");
         }
 
@@ -65,34 +98,108 @@ public class TelnetClient {
 
         byte[] cmdbyte = stringBuilder.toString().getBytes();
 
-        BufferedReader buf = spawnSpy();
-        buf = new BufferedReader(new InputStreamReader(new BufferedInputStream(instream)));
+        BufferedReader buf = new BufferedReader(spawnSpy());
+        outstream.write(cmdbyte, 0, cmdbyte.length);
+        while(buf.ready())
+            buf.read();
+        outstream.flush();
+        String result = buf.readLine();
+        System.out.println(result);
+        result = buf.readLine();
+        System.out.println(result);
+        result = buf.readLine();
+        System.out.println(result);
+        buf.close();
+        return result;
+    }
+
+    public String expectResponse(String cmd, String expected) throws IOException, InterruptedException, TimeoutException, ExecutionException {
+        return expectResponse(cmd, expected, -1);
+    }
+
+    public String expectResponse(String cmd, String expected, int timeout) throws IOException, InterruptedException, TimeoutException, ExecutionException {
+
+        if (client == null || !client.isConnected()) {
+            throw new IOException("Unable to send message to disconnected client");
+        }
+
+        StringBuilder stringBuilder = new StringBuilder();
+
+        stringBuilder.append(cmd.toUpperCase(Locale.ENGLISH));
+        stringBuilder.append("\n\r");
+
+        byte[] cmdbyte = stringBuilder.toString().getBytes();
+
+        BufferedReader buf = new BufferedReader(spawnSpy());
         outstream.write(cmdbyte, 0, cmdbyte.length);
         outstream.flush();
 
-        String res = null;
-        for (int i = 0; i < line+1; i++) {
-            res = buf.readLine();
+        if (timeout == -1) {
+            return readUntil(expected);
+        } else {
+            return readUntil(expected, timeout);
         }
-        buf.close();
-        return res;
     }
 
-    public BufferedReader spawnSpy() throws InterruptedException {
+    public InputStreamReader spawnSpy() throws InterruptedException {
         PipedInputStream pipe = new PipedInputStream();
         Thread t = new Thread(new ReaderThread(pipe));
         t.start();
-        synchronized (t){
+        synchronized (t) {
             t.wait();
         }
-        return new BufferedReader(new InputStreamReader(pipe));
+        return new InputStreamReader(pipe);
     }
 
-    public class ReaderThread implements Runnable {
+    private String readUntil(String expected) throws InterruptedException, TimeoutException, ExecutionException {
+        return readUntil(expected, -1);
+    }
+
+    private String readUntil(String expected, int timeout) throws InterruptedException, TimeoutException, ExecutionException {
+        final ExecutorService service;
+        final Future<String> result;
+        if (timeout == -1) {
+            service = Executors.newFixedThreadPool(1);
+            result = service.submit(new ReadUntil(expected));
+            return result.get(5, TimeUnit.SECONDS);
+        } else {
+            service = Executors.newFixedThreadPool(1);
+            result = service.submit(new ReadUntil(expected));
+            return result.get(timeout, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private class ReadUntil implements Callable<String> {
+        String expected;
+        int th;
+
+        @Override
+        public String call() {
+            try {
+                BufferedReader stream = new BufferedReader(spawnSpy());
+                String line = null;
+                while ((line = stream.readLine()) != null){
+                    if(line.contains(expected))
+                        break;
+                }
+                return line;
+            } catch (InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        public ReadUntil(String expect) {
+            expected = expect;
+        }
+    }
+
+    private class ReaderThread implements Runnable {
         PipedInputStream pipe;
+
         @Override
         public void run() {
-            synchronized (this){
+            synchronized (this) {
                 PipedOutputStream spy = new PipedOutputStream();
                 connection.registerSpyStream(spy);
                 try {
@@ -104,7 +211,7 @@ public class TelnetClient {
             }
         }
 
-        public ReaderThread(PipedInputStream stream){
+        public ReaderThread(PipedInputStream stream) {
             pipe = stream;
         }
     }

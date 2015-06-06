@@ -52,7 +52,19 @@ public class TelnetClientTest{
     public void testSendUntilResponse() throws Exception {
         TelnetClient client = new TelnetClient("192.168.0.105", 8102);
         client.sendCommand("PO");
-        client.sendUntilResponse("VD",200,"VOL000");
-        client.sendUntilResponse("VU",200,"VOL029","VOL031","VOL033");
+        client.sendUntilResponse("VD"
+                , 200
+                , new ResponseTest() {
+                    @Override
+                    public Boolean test(String str) {
+                        return true;
+                    }
+                });
+        client.sendUntilResponse("VU", 200, new ResponseTest() {
+            @Override
+            public Boolean test(String str) {
+                return true;
+            }
+        });
     }
 }

@@ -54,20 +54,16 @@ public class TelnetClient {
     }
 
     //TODO implement a nice timeout
-    public boolean sendUntilResponse(String cmd, int speed, final String... expecteds) throws InterruptedException {
+    public boolean sendUntilResponse(String cmd, int speed, final ResponseTest tester) throws InterruptedException {
         final boolean[] notSeen = {true};
         final BufferedReader stream = new BufferedReader(spawnSpy());
         Runnable r = new Runnable() {
             @Override
             public void run(){
-                String line = null;
+                String line;
                 try {
                     while ((line = stream.readLine()) != null){
-                        boolean done =false;
-                        for(String expected : expecteds)
-                            if(line.contains(expected))
-                                done = true;
-                        if(done)
+                        if(tester.test(line))
                             break;
                     }
                 } catch (IOException e) {

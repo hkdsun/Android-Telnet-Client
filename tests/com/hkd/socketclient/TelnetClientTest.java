@@ -6,6 +6,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
@@ -57,14 +59,42 @@ public class TelnetClientTest{
                 , new ResponseTest() {
                     @Override
                     public Boolean test(String str) {
-                        return true;
+                        Pattern pattern = Pattern.compile("VOL(.*?)");
+                        Matcher matcher = pattern.matcher(str);
+                        if(matcher.matches()) {
+                            str = matcher.replaceFirst("");
+                            str = str.replace("\r\n", "");
+                            str = str.replace(" ", "");
+                            int volume = Integer.parseInt(str);
+                            if (volume < 10)
+                                return true;
+                            else
+                                return false;
+                        } else {
+                            return false;
+                        }
                     }
                 });
-        client.sendUntilResponse("VU", 200, new ResponseTest() {
-            @Override
-            public Boolean test(String str) {
-                return true;
-            }
+        client.sendUntilResponse("VU"
+                ,200
+                ,new ResponseTest() {
+                    @Override
+                    public Boolean test(String str) {
+                        Pattern pattern = Pattern.compile("VOL(.*?)");
+                        Matcher matcher = pattern.matcher(str);
+                        if(matcher.matches()) {
+                            str = matcher.replaceFirst("");
+                            str = str.replace("\r\n", "");
+                            str = str.replace(" ", "");
+                            int volume = Integer.parseInt(str);
+                            if (volume > 29)
+                                return true;
+                            else
+                                return false;
+                        } else {
+                            return false;
+                        }
+                    }
         });
     }
 }

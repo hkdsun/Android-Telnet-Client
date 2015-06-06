@@ -12,21 +12,21 @@ import static java.lang.Thread.sleep;
 public class TelnetClient {
     private TelnetConnection client;
     private OutputStream outstream;
-    private org.apache.commons.net.telnet.TelnetClient connection;
+    private org.apache.commons.net.telnet.TelnetClient rawConnection;
     private BufferedInputStream instream;
     AtomicInteger guy;
 
     public TelnetClient(String ip, int port) throws IOException {
         client = new TelnetConnection(ip, port);
         client.connect();
-        connection = client.getConnection();
+        rawConnection = client.getConnection();
         outstream = client.getOutput();
         instream = client.getReader();
         guy = new AtomicInteger();
     }
 
     public void close() throws IOException {
-        connection.disconnect();
+        rawConnection.disconnect();
     }
 
     /**
@@ -169,6 +169,14 @@ public class TelnetClient {
         }
     }
 
+    public boolean isConnected() {
+        return client.isConnected();
+    }
+
+    public boolean disconnect() {
+        return client.disconnect();
+    }
+
     private class ReadUntil implements Callable<String> {
         String expected;
         int th;
@@ -201,7 +209,7 @@ public class TelnetClient {
         public void run() {
             synchronized (this) {
                 PipedOutputStream spy = new PipedOutputStream();
-                connection.registerSpyStream(spy);
+                rawConnection.registerSpyStream(spy);
                 try {
                     spy.connect(pipe);
                     this.notifyAll();

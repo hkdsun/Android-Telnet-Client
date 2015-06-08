@@ -6,6 +6,8 @@ import java.util.Locale;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.io.IOUtils;
+
 import static java.lang.Thread.sleep;
 
 
@@ -54,7 +56,7 @@ public class TelnetClient {
     }
 
     //TODO implement a nice timeout
-    public boolean sendUntilResponse(String cmd, int speed, final ResponseTest tester) throws InterruptedException {
+    public boolean sendUntilResponse(String cmd, int speed, final ResponseTest tester) throws InterruptedException, IOException {
         final boolean[] notSeen = {true};
         final BufferedReader stream = new BufferedReader(spawnSpy());
         Runnable r = new Runnable() {
@@ -62,9 +64,11 @@ public class TelnetClient {
             public void run(){
                 String line;
                 try {
-                    while ((line = stream.readLine()) != null){
-                        if(tester.test(line))
+                    while (true){
+                        line = stream.readLine();
+                        if(tester.test(line)) {
                             break;
+                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -99,17 +103,15 @@ public class TelnetClient {
         byte[] cmdbyte = stringBuilder.toString().getBytes();
 
         BufferedReader buf = new BufferedReader(spawnSpy());
-        outstream.write(cmdbyte, 0, cmdbyte.length);
         while(buf.ready())
             buf.read();
+        outstream.write(cmdbyte, 0, cmdbyte.length);
         outstream.flush();
         String result = buf.readLine();
-        System.out.println(result);
-        result = buf.readLine();
-        System.out.println(result);
-        result = buf.readLine();
-        System.out.println(result);
+        while(result.length() < 1 || result.contains(cmd))
+            result = buf.readLine();
         buf.close();
+
         return result;
     }
 
@@ -141,14 +143,28 @@ public class TelnetClient {
         }
     }
 
-    public InputStreamReader spawnSpy() throws InterruptedException {
-        PipedInputStream pipe = new PipedInputStream();
-        Thread t = new Thread(new ReaderThread(pipe));
-        t.start();
-        synchronized (t) {
-            t.wait();
-        }
-        return new InputStreamReader(pipe);
+    public InputStreamReader spawnSpy() throws InterruptedException, IOException {
+        PipedOutputStream out = new PipedOutputStream();
+        PipedInputStream in = new PipedInputStream();
+        in.connect(out);
+        return spawnSpy(in,out);
+    }
+
+    private InputStreamReader spawnSpy(final PipedInputStream pipein, final PipedOutputStream pipeout) throws InterruptedException {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    IOUtils.copy(instream, pipeout);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        new Thread(r).start();
+
+        return new InputStreamReader(pipein);
     }
 
     private String readUntil(String expected) throws InterruptedException, TimeoutException, ExecutionException {
@@ -179,13 +195,24 @@ public class TelnetClient {
 
     private class ReadUntil implements Callable<String> {
         String expected;
-        int th;
 
         @Override
         public String call() {
             try {
+                final InputStreamReader reader = spawnSpy();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            IOUtils.copy(reader,System.out);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
                 BufferedReader stream = new BufferedReader(spawnSpy());
-                String line = null;
+
+                String line;
                 while ((line = stream.readLine()) != null){
                     if(line.contains(expected))
                         break;
@@ -199,28 +226,6 @@ public class TelnetClient {
 
         public ReadUntil(String expect) {
             expected = expect;
-        }
-    }
-
-    private class ReaderThread implements Runnable {
-        PipedInputStream pipe;
-
-        @Override
-        public void run() {
-            synchronized (this) {
-                PipedOutputStream spy = new PipedOutputStream();
-                rawConnection.registerSpyStream(spy);
-                try {
-                    spy.connect(pipe);
-                    this.notifyAll();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        public ReaderThread(PipedInputStream stream) {
-            pipe = stream;
         }
     }
 }

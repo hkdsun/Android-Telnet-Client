@@ -14,16 +14,16 @@ import android.util.Log;
 public class PioneerController{
 	private TelnetClient pioneerclient;
 	protected static final String TAG = "PioneerController";
-	private int volume=-1;
+	volatile private int volume=-1;
     private boolean power=false;
     private boolean changingVolume=false;
 
-	public PioneerController(TelnetClient telnetclient){
+	public PioneerController(TelnetClient telnetclient) {
+        pioneerclient = telnetclient;
         Runnable r = statusRunnable();
-		pioneerclient = telnetclient;
         Thread statusThread = new Thread(r);
-        statusThread.run();
-	}
+        statusThread.start();
+    }
 
     public int getVolume(){
         return volume;
@@ -63,22 +63,28 @@ public class PioneerController{
             public void run() {
                 changingVolume = true;
                 try {
-                    pioneerclient.sendUntilResponse("VU",100,new ResponseTest() {
-                        @Override
-                        public Boolean test(String str) {
-                            Pattern pattern = Pattern.compile("VOL(.*?)");
-                            Matcher matcher = pattern.matcher(str);
-                            if(matcher.matches()) {
-                                str = matcher.replaceFirst("");
-                                str = str.replace("\r\n", "");
-                                str = str.replace(" ", "");
-                                int vol = Integer.getInteger(str,-1);
-                                return vol > rawVolume(humanVol);
-                            } else {
-                                return false;
+                    try {
+                        pioneerclient.sendUntilResponse("VU",200,new ResponseTest() {
+                            @Override
+                            public Boolean test(String str) {
+                                Pattern pattern = Pattern.compile("VOL(.*?)");
+                                Matcher matcher = pattern.matcher(str);
+                                if(matcher.matches()) {
+                                    System.out.println("str is " + str);
+                                    str = matcher.replaceFirst("");
+                                    str = str.replace("\r\n", "");
+                                    str = str.replace(" ", "");
+                                    int vol = Integer.parseInt(str);
+                                    volume = humanVolume(vol);
+                                    return vol > rawVolume(humanVol);
+                                } else {
+                                    return false;
+                                }
                             }
-                        }
-                    });
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 } catch (InterruptedException e) {
                     changingVolume = false;
                     e.printStackTrace();
@@ -86,7 +92,7 @@ public class PioneerController{
                 changingVolume = false;
             }
         };
-        new Thread(r).run();
+        new Thread(r).start();
 	}
 	
 	private void decreaseVolume(final int humanVol){
@@ -95,7 +101,7 @@ public class PioneerController{
             public void run() {
                 changingVolume = true;
                 try {
-                    pioneerclient.sendUntilResponse("VU",100,new ResponseTest() {
+                    pioneerclient.sendUntilResponse("VD",200,new ResponseTest() {
                         @Override
                         public Boolean test(String str) {
                             Pattern pattern = Pattern.compile("VOL(.*?)");
@@ -104,7 +110,9 @@ public class PioneerController{
                                 str = matcher.replaceFirst("");
                                 str = str.replace("\r\n", "");
                                 str = str.replace(" ", "");
-                                int vol = Integer.getInteger(str,-1);
+                                int vol = Integer.parseInt(str);
+                                volume = humanVolume(vol);
+                                System.out.println("K got it");
                                 return vol < rawVolume(humanVol);
                             } else {
                                 return false;
@@ -114,11 +122,13 @@ public class PioneerController{
                 } catch (InterruptedException e) {
                     changingVolume = false;
                     e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
                 changingVolume = false;
             }
         };
-        new Thread(r).run();
+        new Thread(r).start();
 	}
 
     private int rawVolume(int v){
@@ -178,11 +188,13 @@ public class PioneerController{
                         status = pioneerclient.getResponse("?VOL");
                         Pattern pattern = Pattern.compile("VOL(.*?)");
                         Matcher matcher = pattern.matcher(status);
-                        status = matcher.replaceFirst("");
-                        status = status.replace("\r\n", "");
-                        status = status.replace(" ", "");
-                        volume = humanVolume(Integer.getInteger(status, -1));
-
+                        if(matcher.matches()) {
+                            status = matcher.replaceFirst("");
+                            status = status.replace("\r\n", "");
+                            status = status.replace(" ", "");
+                            System.out.println(status);
+                            volume = humanVolume(Integer.parseInt(status));
+                        }
                         //Get power status
                         status = pioneerclient.getResponse("?PWR");
                         if(status.contains("PWR2"))
@@ -191,9 +203,10 @@ public class PioneerController{
                             power = true;
 
                         //Give her some time
-                        sleep(200);
+                        sleep(1000);
                     } catch (IOException | InterruptedException e) {
                         Log.e(TAG,"Status thread timed out");
+                        System.out.println("c");
                     }
                 }
             }

@@ -1,28 +1,60 @@
 package com.hkd.socketclient;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import static java.lang.Thread.sleep;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.regex.*;
-
-import android.app.Activity;
-import android.os.AsyncTask;
 import android.util.Log;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static java.lang.Thread.sleep;
 
 public class PioneerController{
 	private TelnetClient pioneerclient;
 	protected static final String TAG = "PioneerController";
 	volatile private int volume=-1;
-    private boolean power=false;
-    private boolean changingVolume=false;
+    volatile private boolean power=false;
+    private AtomicBoolean changingVolume = new AtomicBoolean(false);
+    private Thread statusThread;
+    private MainActivity context;
 
-	public PioneerController(TelnetClient telnetclient) {
-        pioneerclient = telnetclient;
+	public PioneerController(String ip, int port, MainActivity con) {
+        TelnetClient connection = null;
+        try {
+            connection = new TelnetClient(ip, port);
+        } catch (IOException e) {
+            Log.e(TAG,"Could not establish connection with server");
+            e.printStackTrace();
+        }
+        pioneerclient = connection;
         Runnable r = statusRunnable();
-        Thread statusThread = new Thread(r);
+        statusThread = new Thread(r);
         statusThread.start();
+        context = con;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    InputStreamReader a = pioneerclient.spawnSpy();
+                    BufferedReader reader = new BufferedReader(a);
+                    while(true){
+                        final String line = reader.readLine();
+                        if(line != null) {
+                            context.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    context.appendToConsole(line);
+                                }
+                            });
+                        }
+                    }
+                } catch (InterruptedException | IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     public int getVolume(){
@@ -34,7 +66,7 @@ public class PioneerController{
 	}
 	
 	public void changeVolume(int newVal) {
-		if(volume == newVal || changingVolume)
+		if(volume == newVal || changingVolume.get())
 			return;
 		else if(volume>newVal)
 			decreaseVolume(newVal);
@@ -61,7 +93,8 @@ public class PioneerController{
         Runnable r = new Runnable() {
             @Override
             public void run() {
-                changingVolume = true;
+                changingVolume.set(true);
+                final int[] vol = {0};
                 try {
                     try {
                         pioneerclient.sendUntilResponse("VU",200,new ResponseTest() {
@@ -74,9 +107,8 @@ public class PioneerController{
                                     str = matcher.replaceFirst("");
                                     str = str.replace("\r\n", "");
                                     str = str.replace(" ", "");
-                                    int vol = Integer.parseInt(str);
-                                    volume = humanVolume(vol);
-                                    return vol > rawVolume(humanVol);
+                                    vol[0] = BaseTools.getIntOrElse(str, vol[0]);
+                                    return vol[0] > rawVolume(humanVol);
                                 } else {
                                     return false;
                                 }
@@ -86,10 +118,10 @@ public class PioneerController{
                         e.printStackTrace();
                     }
                 } catch (InterruptedException e) {
-                    changingVolume = false;
+                    changingVolume.set(false);
                     e.printStackTrace();
                 }
-                changingVolume = false;
+                changingVolume.set(false);
             }
         };
         new Thread(r).start();
@@ -99,7 +131,8 @@ public class PioneerController{
         Runnable r = new Runnable() {
             @Override
             public void run() {
-                changingVolume = true;
+                changingVolume.set(false);
+                final int[] vol = {0};
                 try {
                     pioneerclient.sendUntilResponse("VD",200,new ResponseTest() {
                         @Override
@@ -110,22 +143,22 @@ public class PioneerController{
                                 str = matcher.replaceFirst("");
                                 str = str.replace("\r\n", "");
                                 str = str.replace(" ", "");
-                                int vol = Integer.parseInt(str);
-                                volume = humanVolume(vol);
+                                vol[0] = BaseTools.getIntOrElse(str, vol[0]);
+                                volume = humanVolume(vol[0]);
                                 System.out.println("K got it");
-                                return vol < rawVolume(humanVol);
+                                return vol[0] < rawVolume(humanVol);
                             } else {
                                 return false;
                             }
                         }
                     });
                 } catch (InterruptedException e) {
-                    changingVolume = false;
+                    changingVolume.set(false);
                     e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                changingVolume = false;
+                changingVolume.set(false);
             }
         };
         new Thread(r).start();
@@ -193,24 +226,47 @@ public class PioneerController{
                             status = status.replace("\r\n", "");
                             status = status.replace(" ", "");
                             System.out.println(status);
-                            volume = humanVolume(Integer.parseInt(status));
+                            volume = humanVolume(BaseTools.getIntOrElse(status, volume));
+                            context.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    context.setVolume(volume);
+                                }
+                            });
                         }
                         //Get power status
                         status = pioneerclient.getResponse("?PWR");
+                        System.out.println("power stats: " + status);
                         if(status.contains("PWR2"))
                             power = false;
                         else if(status.contains("PWR0"))
                             power = true;
-
-                        //Give her some time
-                        sleep(1000);
+                        context.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                context.setPower(power);
+                            }
+                        });
                     } catch (IOException | InterruptedException e) {
                         Log.e(TAG,"Status thread timed out");
-                        System.out.println("c");
+                        break;
                     }
                 }
             }
         };
+    }
+
+    public boolean isConnected() {
+        return pioneerclient.isConnected();
+    }
+
+    public boolean disconnect() {
+        statusThread.interrupt();
+        return pioneerclient.disconnect();
+    }
+
+    public void sendCommand(String s) {
+        pioneerclient.sendCommand(s);
     }
 }
 

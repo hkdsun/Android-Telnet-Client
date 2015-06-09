@@ -2,6 +2,8 @@ package com.hkd.socketclient;
 
 
 import java.io.*;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,8 +17,9 @@ public class TelnetClient {
     private TelnetConnection client;
     private OutputStream outstream;
     private org.apache.commons.net.telnet.TelnetClient rawConnection;
-    private BufferedInputStream instream;
+    private InputStream instream;
     AtomicInteger guy;
+    private LinkedList<Thread> threads = new LinkedList();
 
     public TelnetClient(String ip, int port) throws IOException {
         client = new TelnetConnection(ip, port);
@@ -58,7 +61,8 @@ public class TelnetClient {
     //TODO implement a nice timeout
     public boolean sendUntilResponse(String cmd, int speed, final ResponseTest tester) throws InterruptedException, IOException {
         final boolean[] notSeen = {true};
-        final BufferedReader stream = new BufferedReader(spawnSpy());
+        InputStreamReader a = spawnSpy();
+        final BufferedReader stream = new BufferedReader(a);
         Runnable r = new Runnable() {
             @Override
             public void run(){
@@ -102,14 +106,14 @@ public class TelnetClient {
 
         byte[] cmdbyte = stringBuilder.toString().getBytes();
 
-        BufferedReader buf = new BufferedReader(spawnSpy());
+        InputStreamReader a = spawnSpy();
+        BufferedReader buf = new BufferedReader(a);
         while(buf.ready())
             buf.read();
         outstream.write(cmdbyte, 0, cmdbyte.length);
         outstream.flush();
+        buf.readLine();
         String result = buf.readLine();
-        while(result.length() < 1 || result.contains(cmd))
-            result = buf.readLine();
         buf.close();
 
         return result;
@@ -132,7 +136,6 @@ public class TelnetClient {
 
         byte[] cmdbyte = stringBuilder.toString().getBytes();
 
-        BufferedReader buf = new BufferedReader(spawnSpy());
         outstream.write(cmdbyte, 0, cmdbyte.length);
         outstream.flush();
 
@@ -145,7 +148,7 @@ public class TelnetClient {
 
     public InputStreamReader spawnSpy() throws InterruptedException, IOException {
         PipedOutputStream out = new PipedOutputStream();
-        PipedInputStream in = new PipedInputStream();
+        PipedInputStream in = new PipedInputStream(512);
         in.connect(out);
         return spawnSpy(in,out);
     }
@@ -154,15 +157,25 @@ public class TelnetClient {
         Runnable r = new Runnable() {
             @Override
             public void run() {
-                try {
-                    IOUtils.copy(instream, pipeout);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    try {
+                        while(!Thread.currentThread().isInterrupted()) {
+                            IOUtils.copy(instream, pipeout);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            pipeout.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
-            }
         };
 
-        new Thread(r).start();
+        Thread n = new Thread(r);
+        threads.add(n);
+        n.start();
 
         return new InputStreamReader(pipein);
     }
@@ -190,6 +203,9 @@ public class TelnetClient {
     }
 
     public boolean disconnect() {
+        for (Thread thread : threads) {
+            thread.interrupt();
+        }
         return client.disconnect();
     }
 
@@ -199,24 +215,15 @@ public class TelnetClient {
         @Override
         public String call() {
             try {
-                final InputStreamReader reader = spawnSpy();
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            IOUtils.copy(reader,System.out);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }).start();
-                BufferedReader stream = new BufferedReader(spawnSpy());
+                InputStreamReader a = spawnSpy();
+                BufferedReader stream = new BufferedReader(a);
 
                 String line;
                 while ((line = stream.readLine()) != null){
                     if(line.contains(expected))
                         break;
                 }
+                stream.close();
                 return line;
             } catch (InterruptedException | IOException e) {
                 e.printStackTrace();

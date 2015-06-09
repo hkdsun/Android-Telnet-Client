@@ -1,25 +1,18 @@
 package com.hkd.socketclient;
 
-import java.io.IOException;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.StrictMode;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
-import android.widget.EditText;
-import android.widget.NumberPicker;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.ToggleButton;
+import android.widget.*;
 
 public class MainActivity extends Activity {
 
-	private TelnetClient client = null;
-	private PioneerController pioneer = null;
+	private PioneerController client = null;
 	private Toast fastToast;
 	private static TextView et;
 	private static NumberPicker numpicker;
@@ -44,8 +37,8 @@ public class MainActivity extends Activity {
 		numpicker.setMinValue(MIN_VOL);
 		numpicker.setMaxValue(MAX_VOL);
 
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+        //StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        //StrictMode.setThreadPolicy(policy);
 		
 				
 		fastToast = Toast.makeText(this,"", Toast.LENGTH_SHORT);
@@ -56,13 +49,13 @@ public class MainActivity extends Activity {
 	}
 	
 	public void onVolumeChange(View view){
-		if(client==null || !client.isConnected()){
+		if(!client.isConnected()){
 			toastFast("Not connected to a server");			
 			return;
 		}
 		
-		pioneer.changeVolume(numpicker.getValue());
-		//pioneer.getVolume();
+		client.changeVolume(numpicker.getValue());
+		//client.getVolume();
 	}
 	
 	@Override
@@ -125,25 +118,24 @@ public class MainActivity extends Activity {
 		if(client!=null && client.isConnected()) 
 			toastFast("Already connected");
 		else {
-            new Thread(new Runnable() {
+            new AsyncTask<MainActivity, Void, Void>() {
                 @Override
-                public void run() {
-                    try {
-                        client = new TelnetClient(SERVER_IP, SERVERPORT);
-                        pioneer = new PioneerController(client);
-                        numpicker.setValue(pioneer.getVolume());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                protected Void doInBackground(MainActivity... act) {
+                    client = new PioneerController(SERVER_IP, SERVERPORT, act[0]);
+                    return null;
                 }
-            }).run();
+
+                @Override
+                protected void onPostExecute(Void aVoid) {
+                    numpicker.setValue(client.getVolume());
+                }
+            }.execute(this);
         }
 	}
 	
 	public void setPower(boolean on){
 		ToggleButton power = (ToggleButton) findViewById(R.id.powerButton);
 		power.setChecked(on);
-		return;
 	}
 	
 	public void onClickDisconnect(View view){
@@ -178,47 +170,48 @@ public class MainActivity extends Activity {
 			return;
 		}
 		
-		pioneer.togglePower();
+		client.togglePower();
 	}
 	
 	public void onClickPlay(View view){
-		pioneer.play();
+		client.play();
 	}
 	
 	public void onClickStop(View view){
-		pioneer.stop();
+		client.stop();
 	}
 
 	public void onClickXbox(View view){
-		pioneer.input("Xbox");
+		client.input("Xbox");
 	}
 
 	public void onClickProjector(View view){
-		pioneer.input("Projector");
+		client.input("Projector");
 	}
 	
 	public void onClickRP(View view){
-		pioneer.input("Radio Paradise");
+		client.input("Radio Paradise");
 	}
 
 	public void appendToConsole(String str){
+        et.append("\n");
 		et.append(str);
-		return;
 	}
 	
 	public void resetConsole(){
 		et.setText("");
-		return;
 	}
 	
 	public void setConsole(String str){
 		et.setText(str);
-		return;
 	}
 	
 	public String getConsole(){
 		return et.getText().toString();
 	}
-	
 
+
+    public void setVolume(int volume) {
+        numpicker.setValue(volume);
+    }
 }

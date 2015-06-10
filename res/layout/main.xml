@@ -69,6 +69,19 @@
         android:text="ToggleButton" />
 
     <TextView
+        android:id="@+id/statusStreamTextView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/border"
+        android:gravity="bottom"
+        android:padding="15dip"
+        android:scrollbars="vertical"
+        android:text="@string/input_stream_welcome_text"
+        android:layout_below="@+id/projectorButton" android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" android:layout_alignRight="@+id/connectButton"
+        android:layout_alignEnd="@+id/connectButton"/>
+
+    <TextView
         android:id="@+id/inputStreamTextView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -78,7 +91,10 @@
         android:gravity="bottom"
         android:padding="15dip"
         android:scrollbars="vertical"
-        android:text="@string/input_stream_welcome_text" />
+        android:text="@string/input_stream_welcome_text" android:layout_toRightOf="@+id/connectButton"
+        android:layout_toEndOf="@+id/connectButton"/>
+
+
 
     <Button
         android:id="@+id/volumeButton"

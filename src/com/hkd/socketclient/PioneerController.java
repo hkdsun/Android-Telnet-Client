@@ -19,8 +19,10 @@ public class PioneerController{
     private AtomicBoolean changingVolume = new AtomicBoolean(false);
     private Thread statusThread;
     private MainActivity context;
+    private boolean dirtyvol = false;
+    private int COMMAND_SPEED = 250;
 
-	public PioneerController(String ip, int port, MainActivity con) {
+    public PioneerController(String ip, int port, MainActivity con) throws IOException, InterruptedException {
         TelnetClient connection = null;
         try {
             connection = new TelnetClient(ip, port);
@@ -33,13 +35,13 @@ public class PioneerController{
         statusThread = new Thread(r);
         statusThread.start();
         context = con;
+        final InputStreamReader a = pioneerclient.spawnSpy();
+        final BufferedReader reader = new BufferedReader(a);
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    InputStreamReader a = pioneerclient.spawnSpy();
-                    BufferedReader reader = new BufferedReader(a);
-                    while(true){
+                    while(!Thread.currentThread().isInterrupted()){
                         final String line = reader.readLine();
                         if(line != null) {
                             context.runOnUiThread(new Runnable() {
@@ -50,7 +52,7 @@ public class PioneerController{
                             });
                         }
                     }
-                } catch (InterruptedException | IOException e) {
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
@@ -66,12 +68,11 @@ public class PioneerController{
 	}
 	
 	public void changeVolume(int newVal) {
-		if(volume == newVal || changingVolume.get())
-			return;
-		else if(volume>newVal)
+		if(volume>newVal)
 			decreaseVolume(newVal);
 		else
 			increaseVolume(newVal);
+        dirtyvol=false;
 	}
 	
 	//TODO implement a universal getStateOf(ENUM) function
@@ -97,13 +98,12 @@ public class PioneerController{
                 final int[] vol = {0};
                 try {
                     try {
-                        pioneerclient.sendUntilResponse("VU",200,new ResponseTest() {
+                        pioneerclient.sendUntilResponse("VU",COMMAND_SPEED,new ResponseTest() {
                             @Override
                             public Boolean test(String str) {
                                 Pattern pattern = Pattern.compile("VOL(.*?)");
                                 Matcher matcher = pattern.matcher(str);
                                 if(matcher.matches()) {
-                                    System.out.println("str is " + str);
                                     str = matcher.replaceFirst("");
                                     str = str.replace("\r\n", "");
                                     str = str.replace(" ", "");
@@ -134,7 +134,7 @@ public class PioneerController{
                 changingVolume.set(false);
                 final int[] vol = {0};
                 try {
-                    pioneerclient.sendUntilResponse("VD",200,new ResponseTest() {
+                    pioneerclient.sendUntilResponse("VD",COMMAND_SPEED,new ResponseTest() {
                         @Override
                         public Boolean test(String str) {
                             Pattern pattern = Pattern.compile("VOL(.*?)");
@@ -144,8 +144,6 @@ public class PioneerController{
                                 str = str.replace("\r\n", "");
                                 str = str.replace(" ", "");
                                 vol[0] = BaseTools.getIntOrElse(str, vol[0]);
-                                volume = humanVolume(vol[0]);
-                                System.out.println("K got it");
                                 return vol[0] < rawVolume(humanVol);
                             } else {
                                 return false;
@@ -217,37 +215,46 @@ public class PioneerController{
                 while(true){
                     String status;
                     try {
-                        //Get volume
-                        status = pioneerclient.getResponse("?VOL");
-                        Pattern pattern = Pattern.compile("VOL(.*?)");
-                        Matcher matcher = pattern.matcher(status);
-                        if(matcher.matches()) {
-                            status = matcher.replaceFirst("");
-                            status = status.replace("\r\n", "");
-                            status = status.replace(" ", "");
-                            System.out.println(status);
-                            volume = humanVolume(BaseTools.getIntOrElse(status, volume));
+                        if(!changingVolume.get()) {
+                            //Get volume
+                            status = pioneerclient.getResponse("?VOL");
+                            Pattern pattern = Pattern.compile("VOL(.*?)");
+                            Matcher matcher = pattern.matcher(status);
+                            if (matcher.matches()) {
+                                status = matcher.replaceFirst("");
+                                status = status.replace("\r\n", "");
+                                status = status.replace(" ", "");
+                                volume = humanVolume(BaseTools.getIntOrElse(status, volume));
+                            }
+                            //Get power status
+                            status = pioneerclient.getResponse("?PWR");
+                            if (status.contains("PWR2"))
+                                power = false;
+                            else if (status.contains("PWR0"))
+                                power = true;
+                            final StringBuilder str = new StringBuilder();
+                            str.append("Volume set to: ");
+                            str.append(volume);
+                            str.append("\nPower is: ");
+                            if (power)
+                                str.append("ON");
+                            else
+                                str.append("OFF");
                             context.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    context.setVolume(volume);
+                                    if (!dirtyvol) {
+                                        context.setVolume(volume);
+                                        dirtyvol = true;
+                                    }
+                                    context.setPower(power);
+                                    context.setStatus(str.toString());
                                 }
                             });
                         }
-                        //Get power status
-                        status = pioneerclient.getResponse("?PWR");
-                        System.out.println("power stats: " + status);
-                        if(status.contains("PWR2"))
-                            power = false;
-                        else if(status.contains("PWR0"))
-                            power = true;
-                        context.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                context.setPower(power);
-                            }
-                        });
+                        sleep(1000);
                     } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
                         Log.e(TAG,"Status thread timed out");
                         break;
                     }

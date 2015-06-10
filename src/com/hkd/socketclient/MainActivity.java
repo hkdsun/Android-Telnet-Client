@@ -10,11 +10,14 @@ import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.widget.*;
 
+import java.io.IOException;
+
 public class MainActivity extends Activity {
 
 	private PioneerController client = null;
 	private Toast fastToast;
 	private static TextView et;
+    private static TextView st;
 	private static NumberPicker numpicker;
 	private static int SERVERPORT = 23;
 	private static String SERVER_IP = "192.168.0.105";
@@ -31,6 +34,7 @@ public class MainActivity extends Activity {
 		
 		EditText etIp = (EditText) findViewById(R.id.EditTextIp);
 		et = (TextView) findViewById(R.id.inputStreamTextView);
+        st = (TextView) findViewById(R.id.statusStreamTextView);
 		et.setMovementMethod(new ScrollingMovementMethod());
 		NumberPicker num = (NumberPicker) findViewById(R.id.volumePicker);
 		numpicker=num;
@@ -121,7 +125,11 @@ public class MainActivity extends Activity {
             new AsyncTask<MainActivity, Void, Void>() {
                 @Override
                 protected Void doInBackground(MainActivity... act) {
-                    client = new PioneerController(SERVER_IP, SERVERPORT, act[0]);
+                    try {
+                        client = new PioneerController(SERVER_IP, SERVERPORT, act[0]);
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     return null;
                 }
 
@@ -148,11 +156,9 @@ public class MainActivity extends Activity {
 		else{
 			toastFast("Already disconnected");
 		}
-		return;
 	}
 	
 	public void onClickSend(View view) {
-		
 		if(client==null || !client.isConnected()){
 			toastFast("Not connected to a server");			
 			return;
@@ -212,6 +218,11 @@ public class MainActivity extends Activity {
 
 
     public void setVolume(int volume) {
-        numpicker.setValue(volume);
+        if(!numpicker.isDirty())
+            numpicker.setValue(volume);
+    }
+
+    public void setStatus(String s) {
+        st.setText(s);
     }
 }
